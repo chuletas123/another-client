@@ -1,0 +1,47 @@
+# Paquetes y binarios: se adjuntan a Releases, fuera del historial Git.
+*.zip
+*.7z
+*.rar
+*.exe
+*.dll
+*.pdb
+*.msi
+*.msix
+/artifacts/
+/dist/
+/build/
+/bin/
+/obj/
+
+# Datos personales, sesiones y archivos locales de ejecución.
+AppData/
+profiles/
+runtime/
+logs/
+cache/
+backups/
+captures/
+node_modules/
+.vs/
+.idea/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.dpapi
+*.user
+*.suo
+
+# Credenciales y claves de firma permanecen fuera del repositorio.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+*.snk
+*credentials*.json
+*cookies*.json
+*session*.json
+*secrets*.json

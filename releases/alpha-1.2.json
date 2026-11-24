@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "name": "Another Client",
+  "distributionVersion": "alpha 1.2",
+  "packageVersion": "1.0.0.47+capture-recovery.1",
+  "platform": "windows-x64",
+  "status": "prepared-not-published",
+  "artifact": {
+    "fileName": "another client alpha 1.2.zip",
+    "bytes": 248294476,
+    "sha256": "45d0751ce733bd89f90f149f5cb4baae65d9356a2d571e8b69f9eb93577856f5"
+  },
+  "clientManifestSha256": "fd9bbd5e03466fc616990184eeb65279adeff0b4a9fb623832fb9ea2663a3890",
+  "clientExecutableSha256": "ef59dc37851bef3e5a196f92f24ccd51772f81322212c152152072e44cac8b69",
+  "packageFileCount": 2747,
+  "containsAccountData": false,
+  "containsPrivateKeys": false,
+  "validation": {
+    "allPackageHashesVerified": true,
+    "allZipCrcsVerified": true,
+    "manualCaptureTrialPending": true
+  },
+  "activeUpdateFeed": false
+}
