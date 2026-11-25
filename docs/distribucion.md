@@ -27,6 +27,8 @@ Mientras se ejecuta un instalador de Microsoft, Cancel queda temporalmente desac
 
 La barra refleja los bytes descargados y extraídos. Los cambios de progreso se agrupan antes de pintar y se animan con WPF. La red, las huellas y la extracción trabajan fuera del hilo de la interfaz. Se reutilizan el material difuminado, el arrastre y la excepción para aplicaciones a pantalla completa del cliente.
 
+El material es opcional: Windows 10 y los equipos con composición/transparencia desactivada, ahorro de batería, alto contraste o sesión remota usan fondo sólido. Las ventanas opacas se construyen sin activar Windows Runtime Composition. En equipos compatibles se conserva el desenfoque; un error al crearlo o liberarlo activa el respaldo sólido. Las pruebas `Material.Tests` simulan APIs ausentes y el error nativo E_INVALIDARG sin abrir ventanas. La prueba visual real en Windows 10 sigue siendo una comprobación manual separada.
+
 Una actualización se prepara en `Staging`, se verifica por completo y se activa cambiando atómicamente `current.json`. Nunca se mezclan versiones. Cancelar no cambia la versión activa. Si falla el canal o la descarga, puede abrirse la versión instalada que siga verificándose. Una primera instalación necesita conexión. Una secuencia anterior no sustituye a otra más reciente ya instalada.
 
 Los datos personales de `Ac Player`, incluidas las sesiones y la política antialt existentes, quedan fuera de las versiones y no se borran al actualizar. El instalador no añade comprobaciones antialt al servidor ni modifica las cuentas del VPS o la instalación del Roblox oficial.

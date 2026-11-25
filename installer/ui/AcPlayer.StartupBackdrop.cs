@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -16,7 +17,8 @@ namespace AnotherClient.Player
     {
         private readonly StartupCard front;
         private HwndSource source;
-        private StartupBackdropComposition material;
+        private IDisposable material;
+        private bool refreshing;
         private bool canClose;
         internal bool MaterialActive { get { return material != null; } }
 
@@ -48,14 +50,29 @@ namespace AnotherClient.Player
         }
         internal void RefreshMaterial()
         {
-            SuspendMaterial();
-            if (source == null || canClose) return;
-            material = StartupBackdropComposition.TryCreate(source);
-            Background = material == null ? new SolidColorBrush(Color.FromRgb(32, 40, 42)) : Brushes.Transparent;
+            if(refreshing)return;refreshing=true;
+            try{
+                SuspendMaterial();
+                if(source==null||canClose)return;
+                material=StartupMaterialPolicy.TryCreate<IDisposable>(StartupMaterialPolicy.CanUseBlur,()=>StartupBackdropComposition.Create(source));
+                if(material==null)RestoreOpaqueSurface();
+                Background=material==null?new SolidColorBrush(Color.FromRgb(32,40,42)):Brushes.Transparent;
+            }catch(Exception error){
+                if(!StartupMaterialPolicy.Recoverable(error))throw;
+                SuspendMaterial();
+            }finally{refreshing=false;}
         }
         internal void SuspendMaterial()
         {
-            if (material != null) { material.Dispose(); material = null; }
+            var old=material;material=null;StartupMaterialPolicy.Release(old);
+            RestoreOpaqueSurface();
+            Background=new SolidColorBrush(Color.FromRgb(32,40,42));
+        }
+        private void RestoreOpaqueSurface()
+        {
+            if(source==null)return;
+            try{if(source.CompositionTarget!=null)source.CompositionTarget.BackgroundColor=Color.FromRgb(32,40,42);int off=0;DwmSetWindowAttribute(source.Handle,17,ref off,4);var margins=new Margins();DwmExtendFrameIntoClientArea(source.Handle,ref margins);}
+            catch(Exception error){if(!StartupMaterialPolicy.Recoverable(error))throw;}
         }
         private IntPtr WindowMessages(IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam, ref bool handled)
         {
@@ -77,6 +94,9 @@ namespace AnotherClient.Player
             Close();
         }
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr DefWindowProc(IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam);
+        [StructLayout(LayoutKind.Sequential)]private struct Margins{internal int Left,Right,Top,Bottom;}
+        [DllImport("dwmapi.dll")]private static extern int DwmSetWindowAttribute(IntPtr window,int attribute,ref int value,int size);
+        [DllImport("dwmapi.dll")]private static extern int DwmExtendFrameIntoClientArea(IntPtr window,ref Margins margins);
     }
 
     internal sealed class StartupBackdropComposition : IDisposable
@@ -91,18 +111,18 @@ namespace AnotherClient.Player
         private CompositionColorBrush tintBrush;
         private SpriteVisual backdrop, tint;
 
-        internal static StartupBackdropComposition TryCreate(HwndSource source)
+        // Keep WinRT activation behind a non-inlined call whose signature uses
+        // only framework types. Type loading/JIT failures are caught by the caller.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static IDisposable Create(HwndSource source)
         {
             StartupBackdropComposition candidate = null;
             try {
                 if (SystemParameters.HighContrast || !new Windows.UI.ViewManagement.UISettings().AdvancedEffectsEnabled ||
                     Windows.System.Power.PowerManager.EnergySaverStatus == Windows.System.Power.EnergySaverStatus.On) return null;
                 candidate = new StartupBackdropComposition(); candidate.Initialize(source); return candidate;
-            } catch (Exception error) {
-                if (candidate != null) candidate.Dispose();
-                if (!(error is COMException || error is DllNotFoundException || error is EntryPointNotFoundException ||
-                      error is TypeLoadException || error is NotSupportedException || error is InvalidCastException)) throw;
-                return null;
+            } catch {
+                StartupMaterialPolicy.Release(candidate);throw;
             }
         }
         private void Initialize(HwndSource source)
@@ -132,13 +152,14 @@ namespace AnotherClient.Player
         }
         public void Dispose()
         {
-            if (target != null) { target.Root = null; target.Dispose(); target = null; }
-            if (backdrop != null) { backdrop.Dispose(); backdrop = null; }
-            if (tint != null) { tint.Dispose(); tint = null; }
-            if (brush != null) { brush.Dispose(); brush = null; }
-            if (tintBrush != null) { tintBrush.Dispose(); tintBrush = null; }
-            if (root != null) { root.Dispose(); root = null; }
-            if (compositor != null) { compositor.Dispose(); compositor = null; }
+            if(target!=null){try{target.Root=null;}catch(Exception error){if(!StartupMaterialPolicy.Recoverable(error))throw;}}
+            var oldTarget=target;target=null;StartupMaterialPolicy.Release(oldTarget);
+            var oldBackdrop=backdrop;backdrop=null;StartupMaterialPolicy.Release(oldBackdrop);
+            var oldTint=tint;tint=null;StartupMaterialPolicy.Release(oldTint);
+            var oldBrush=brush;brush=null;StartupMaterialPolicy.Release(oldBrush);
+            var oldTintBrush=tintBrush;tintBrush=null;StartupMaterialPolicy.Release(oldTintBrush);
+            var oldRoot=root;root=null;StartupMaterialPolicy.Release(oldRoot);
+            var oldCompositor=compositor;compositor=null;StartupMaterialPolicy.Release(oldCompositor);
         }
         [StructLayout(LayoutKind.Sequential)] private struct Margins { internal int Left, Right, Top, Bottom; }
         [StructLayout(LayoutKind.Sequential)] private struct QueueOptions { internal int Size, ThreadType, ApartmentType; }

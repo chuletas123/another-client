@@ -21,3 +21,9 @@ $componentSources=@('Installer.Core.cs','Installer.Components.cs','Components.Te
 if($LASTEXITCODE -ne 0){throw 'Component tests did not compile.'}
 & $componentOutput (Join-Path $fixture 'components')
 if($LASTEXITCODE -ne 0){throw 'Component tests failed.'}
+$materialOutput=Join-Path $PSScriptRoot 'build/Material.Tests.exe'
+$materialSources=@('ui/AcPlayer.StartupMaterialPolicy.cs','ui/AcPlayer.StartupMaterialPolicy.Tests.cs') | ForEach-Object {Join-Path $PSScriptRoot $_}
+& $compiler /nologo /target:exe /platform:x64 /optimize+ /debug- ('/out:'+$materialOutput) @materialSources
+if($LASTEXITCODE -ne 0){throw 'Material fallback tests did not compile.'}
+& $materialOutput
+if($LASTEXITCODE -ne 0){throw 'Material fallback tests failed.'}

@@ -41,8 +41,9 @@ namespace AnotherClient.Player
             Width = 500; Height = 280;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
-            AllowsTransparency = true; ShowInTaskbar = false; ShowActivated = !preview;
-            Background = Brushes.Transparent;
+            bool useBlur=StartupMaterialPolicy.CanUseBlur()&&(RenderCapability.Tier>>16)>0;
+            AllowsTransparency = useBlur; ShowInTaskbar = false; ShowActivated = !preview;
+            Background = new SolidColorBrush(Color.FromRgb(32,40,42));
             UseLayoutRounding = true; SnapsToDevicePixels = true;
             FontFamily = new FontFamily("Segoe UI"); Foreground = Brushes.White;
             priority = new StartupWindowPriority(new StartupDesktopObserver(Dispatcher), this);
@@ -70,19 +71,34 @@ namespace AnotherClient.Player
             IsVisibleChanged += delegate {
                 bar.SetOwnerVisible(IsVisible);
                 if (backdropWindow == null) return;
-                if (IsVisible) { backdropWindow.SynchronizeBounds(); backdropWindow.Show(); if (!backdropWindow.MaterialActive) backdropWindow.RefreshMaterial(); }
-                else { backdropWindow.Hide(); backdropWindow.SuspendMaterial(); }
+                try{
+                    if (IsVisible) { backdropWindow.SynchronizeBounds(); backdropWindow.Show(); if (!backdropWindow.MaterialActive) backdropWindow.RefreshMaterial(); }
+                    else { backdropWindow.Hide(); backdropWindow.SuspendMaterial(); }
+                }catch(Exception error){if(!StartupMaterialPolicy.Recoverable(error))throw;UseSolidBackground();}
             };
             LocationChanged += delegate { if (backdropWindow != null) backdropWindow.SynchronizeBounds(); };
             SizeChanged += delegate { if (backdropWindow != null) backdropWindow.SynchronizeBounds(); };
             SourceInitialized += delegate {
                 source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
-                source.CompositionTarget.BackgroundColor = Colors.Transparent;
+                source.CompositionTarget.BackgroundColor = Color.FromRgb(32,40,42);
                 source.AddHook(WindowMessages);
-                backdropWindow = new StartupBackdropWindow(this);
-                backdropWindow.Show(); Owner = backdropWindow;
+                if(!useBlur)return;
+                try{
+                    backdropWindow=new StartupBackdropWindow(this);
+                    backdropWindow.Show();Owner=backdropWindow;
+                    Background=Brushes.Transparent;source.CompositionTarget.BackgroundColor=Colors.Transparent;
+                }catch(Exception error){
+                    if(!StartupMaterialPolicy.Recoverable(error))throw;
+                    UseSolidBackground();
+                }
             };
             Loaded += delegate { if (backdropWindow != null) backdropWindow.SynchronizeBounds(); };
+        }
+        private void UseSolidBackground()
+        {
+            var failed=backdropWindow;backdropWindow=null;StartupMaterialPolicy.Release(failed);
+            Background=new SolidColorBrush(Color.FromRgb(32,40,42));
+            if(source!=null&&source.CompositionTarget!=null)source.CompositionTarget.BackgroundColor=Color.FromRgb(32,40,42);
         }
         internal void ShowStartup() { if (!IsDisposed) priority.Start(); }
         internal void HideStartup() { priority.Stop(); if (IsVisible) Hide(); }
