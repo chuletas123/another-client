@@ -19,7 +19,11 @@ El contenido firmado identifica una versión completa: secuencia, URL del asset 
   Ac Player\                     perfiles, cachés y política de registro existentes
 ```
 
-Trabaja por usuario, sin UAC. Crea `Ac player` en el escritorio y en el menú Inicio. Esos accesos directos consultan el canal antes de abrir la versión seleccionada. Abrir directamente un EXE dentro de `Versions` omite esa comprobación.
+El cliente se instala por usuario. Crea `Ac player` en el escritorio y en el menú Inicio. Esos accesos directos consultan el canal antes de abrir la versión seleccionada. Abrir directamente un EXE dentro de `Versions` omite esa comprobación.
+
+Se necesitan Windows 10/11 x64 y .NET Framework 4.8 o posterior. El instalador comprueba Visual C++ x64 y WebView2. Si falta Visual C++, descarga el redistribuible oficial y verifica su firma y su identidad antes de ejecutarlo; Windows puede pedir autorización UAC para ese componente compartido. Para WebView2 usa el bootstrapper firmado incluido en el paquete, con instalación por usuario. Los componentes presentes no se reinstalan. No se fuerza ningún reinicio. Un resultado que requiera reiniciar se comunica antes de abrir el cliente.
+
+Mientras se ejecuta un instalador de Microsoft, Cancel queda temporalmente desactivado para evitar interrumpir la instalación de componentes compartidos. Las descargas y la extracción del cliente sí se pueden cancelar. La versión nueva no se activa hasta que las comprobaciones de componentes terminan correctamente. .NET Framework debe estar disponible para ejecutar el descargador administrado; no se incluye un instalador nativo de .NET.
 
 La barra refleja los bytes descargados y extraídos. Los cambios de progreso se agrupan antes de pintar y se animan con WPF. La red, las huellas y la extracción trabajan fuera del hilo de la interfaz. Se reutilizan el material difuminado, el arrastre y la excepción para aplicaciones a pantalla completa del cliente.
 
@@ -48,4 +52,4 @@ Conservar una copia de seguridad protegida de la cuenta y del material de firma.
 
 `installer/Build.ps1` compila con .NET Framework y las proyecciones de Windows Runtime de Windows. `installer/Test.ps1` ejecuta pruebas sin abrir ventanas ni iniciar Player, en carpetas de prueba separadas de AppData y del escritorio. El directorio `build` contiene herramientas del editor que no se distribuyen junto al instalador.
 
-Referencias: [assets de Releases](https://docs.github.com/en/rest/releases/assets#get-a-release-asset), [versión más reciente](https://docs.github.com/en/rest/releases/releases#get-the-latest-release), [carpetas de aplicaciones de Windows](https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid).
+Referencias: [assets de Releases](https://docs.github.com/en/rest/releases/assets#get-a-release-asset), [versión más reciente](https://docs.github.com/en/rest/releases/releases#get-the-latest-release), [carpetas de aplicaciones de Windows](https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid), [WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution), [Visual C++](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files), [detección de .NET](https://learn.microsoft.com/en-us/dotnet/framework/install/how-to-determine-which-versions-are-installed).

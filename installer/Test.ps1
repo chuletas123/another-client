@@ -15,3 +15,9 @@ $shellSources=@('Installer.Core.cs','Installer.Shell.cs','Shell.Tests.cs') | For
 if($LASTEXITCODE -ne 0){throw 'Shell tests did not compile.'}
 & $shellOutput (Join-Path $fixture 'shell')
 if($LASTEXITCODE -ne 0){throw 'Shell tests failed.'}
+$componentOutput=Join-Path $PSScriptRoot 'build/Components.Tests.exe'
+$componentSources=@('Installer.Core.cs','Installer.Components.cs','Components.Tests.cs') | ForEach-Object {Join-Path $PSScriptRoot $_}
+& $compiler /nologo /target:exe /platform:x64 /optimize+ /debug- ('/out:'+$componentOutput) /r:System.dll /r:System.Core.dll /r:System.Security.dll /r:System.Net.Http.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll @componentSources
+if($LASTEXITCODE -ne 0){throw 'Component tests did not compile.'}
+& $componentOutput (Join-Path $fixture 'components')
+if($LASTEXITCODE -ne 0){throw 'Component tests failed.'}

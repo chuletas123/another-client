@@ -35,6 +35,7 @@ namespace AnotherClient.Installer
         }
         private static int Run()
         {
+            if(Environment.OSVersion.Version.Major<10)throw new IOException("Another Client requires 64-bit Windows 10 or Windows 11.");
             string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Another Client");
             SafeFiles.EnsureDirectory(root);
             string state=SafeFiles.Child(root,"Installer");SafeFiles.EnsureDirectory(state);
@@ -48,12 +49,16 @@ namespace AnotherClient.Installer
                 var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
                 var card=new StartupCard(false);int exit=0;
                 using(var relay=new StartupProgressRelay(p=>{if(!cancellation.IsCancellationRequested)card.SetProgress(p.Message,p.Percent,p.Indeterminate);})){
-                    var engine=new InstallerEngine(root,key,source,p=>relay.Report(new StartupProgress(p.Message,p.Percent,p.Indeterminate)));
+                    var engine=new InstallerEngine(root,key,source,p=>relay.Report(new StartupProgress(p.Message,p.Percent*90/100,p.Indeterminate)),true);
                     card.CancelRequested+=delegate{cancellation.Cancel();card.SetCancelling();};
                     card.SetProgress("Preparing Another Client...",0,true);card.ShowStartup();
                     app.Dispatcher.BeginInvoke(new Action(async delegate{
                         try{
+                            var components=new WindowsComponents();
+                            if(!components.FrameworkReady)throw new IOException("Another Client requires .NET Framework 4.8 or later. Install it from https://dotnet.microsoft.com/download/dotnet-framework/net48 and try again.");
                             var installed=await Task.Run(()=>engine.Prepare(cancellation.Token));
+                            await Task.Run(()=>ComponentInstallation.Ensure(installed,components,p=>relay.Report(new StartupProgress(p.Message,p.Percent,p.Indeterminate)),busy=>app.Dispatcher.Invoke(()=>card.CancelControl.IsEnabled=!busy),cancellation.Token));
+                            await Task.Run(()=>engine.Commit(installed,cancellation.Token));
                             cancellation.Token.ThrowIfCancellationRequested();
                             // Shell links are created on the STA UI thread. No shell script is launched.
                             card.CancelControl.IsEnabled=false;
@@ -62,7 +67,10 @@ namespace AnotherClient.Installer
                             relay.Report(new StartupProgress("Starting Another Client...",100,false));relay.Flush();
                             card.CompleteAndClose();
                             Process.Start(new ProcessStartInfo(installed.Executable){WorkingDirectory=Path.GetDirectoryName(installed.Executable),UseShellExecute=false});
-                        }catch(OperationCanceledException){exit=0;card.CompleteAndClose();}
+                        }catch(OperationCanceledException){
+                            exit=cancellation.IsCancellationRequested?0:1;card.CompleteAndClose();
+                            if(exit!=0)MessageBox.Show("The download service did not respond in time. Please open Ac player to retry.","Another Client",MessageBoxButton.OK,MessageBoxImage.Error);
+                        }
                         catch(Exception e){
                             exit=1;card.CompleteAndClose();
                             MessageBox.Show("Another Client could not start.\n\n"+e.Message+"\n\nPlease try again. Your account data has been preserved.","Another Client",MessageBoxButton.OK,MessageBoxImage.Error);

@@ -91,6 +91,15 @@ namespace AnotherClient.Installer
                     Reject(()=>SafeFiles.DeleteOwnedTree(directory,directory),"delete parent fixture");
                     var first=Make(1);Check(ReleaseTrust.Verify(first.Envelope,key).Spec.sequence==1,"trusted signature");
                     Network(first);
+                    string deferredRoot=Fresh();var deferredSource=new Transport{Package=first};var deferredEngine=new InstallerEngine(deferredRoot,key,deferredSource,p=>{},true);
+                    var prepared=Prepare(deferredEngine);Check(deferredEngine.Installed()==null,"new client waits for component validation before activation");
+                    deferredEngine.Commit(prepared,CancellationToken.None);Check(deferredEngine.Installed().Release.Spec.sequence==1,"component-ready installation can activate");
+                    deferredSource.Package=Make(2);var update=Prepare(deferredEngine);Check(deferredEngine.Installed().Release.Spec.sequence==1,"update preparation preserves active version");
+                    using(var cancelledCommit=new CancellationTokenSource()){
+                        cancelledCommit.Cancel();bool stopped=false;try{deferredEngine.Commit(update,cancelledCommit.Token);}catch(OperationCanceledException){stopped=true;}
+                        Check(stopped&&deferredEngine.Installed().Release.Spec.sequence==1,"cancelled component phase cannot activate update");
+                    }
+                    deferredEngine.Commit(update,CancellationToken.None);Check(deferredEngine.Installed().Release.Spec.sequence==2,"validated update activated after components");
                     byte[] altered=(byte[])first.Envelope.Clone();var env=ReleaseTrust.Json.Deserialize<SignedEnvelope>(Encoding.UTF8.GetString(altered));env.payload=Convert.ToBase64String(Encoding.UTF8.GetBytes("{}"));
                     Reject(()=>ReleaseTrust.Verify(Encoding.UTF8.GetBytes(ReleaseTrust.Json.Serialize(env)),key),"tampered feed");
                     using(var stranger=new RSACryptoServiceProvider(3072)){stranger.PersistKeyInCsp=false;Reject(()=>ReleaseTrust.Verify(first.Envelope,stranger.ToXmlString(false)),"unknown signer");}

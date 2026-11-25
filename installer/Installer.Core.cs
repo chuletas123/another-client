@@ -199,8 +199,8 @@ namespace AnotherClient.Installer
     }
     internal sealed class InstallerEngine
     {
-        internal readonly string Root;private readonly string publicKey;private readonly IReleaseTransport transport;private readonly Action<InstallProgress> progress;
-        internal InstallerEngine(string root,string key,IReleaseTransport source,Action<InstallProgress> onProgress){Root=Path.GetFullPath(root);publicKey=key;transport=source;progress=onProgress??(p=>{});}
+        internal readonly string Root;private readonly string publicKey;private readonly IReleaseTransport transport;private readonly Action<InstallProgress> progress;private readonly bool deferred;
+        internal InstallerEngine(string root,string key,IReleaseTransport source,Action<InstallProgress> onProgress,bool deferActivation=false){Root=Path.GetFullPath(root);publicKey=key;transport=source;progress=onProgress??(p=>{});deferred=deferActivation;}
         private string Installer {get{return SafeFiles.Child(Root,"Installer");}}
         private void Report(string text,int percent,bool pending=false){progress(new InstallProgress(text,percent,pending));}
         internal Installation Installed(string pointer="current.json")
@@ -236,7 +236,7 @@ namespace AnotherClient.Installer
             if(installed!=null&&latest.Spec.sequence<=installed.Release.Spec.sequence){Report("Starting Another Client...",100);return installed;}
             string final=SafeFiles.Child(Root,"Versions/"+latest.Spec.DirectoryName);
             if(Directory.Exists(final)) {
-                try{VerifyFolder(final,latest.Spec,token,true);Activate(latest,token);return new Installation(Root,latest);}
+                try{VerifyFolder(final,latest.Spec,token,true);if(!deferred)Activate(latest,token);return new Installation(Root,latest);}
                 catch(OperationCanceledException){throw;}
                 catch(Exception e){
                     if(!(e is IOException)&&!(e is InvalidDataException))throw;
@@ -267,8 +267,17 @@ namespace AnotherClient.Installer
                 Extract(archive,transaction,latest.Spec,token,n=>Report("Installing Another Client...",78+(int)(19.0*n/latest.Spec.uncompressedBytes)));
                 VerifyFolder(transaction,latest.Spec,token,true);token.ThrowIfCancellationRequested();
                 SafeFiles.NoReparse(final);Directory.Move(transaction,final);
-                Activate(latest,token);return new Installation(Root,latest);
+                if(!deferred)Activate(latest,token);return new Installation(Root,latest);
             }finally{if(Directory.Exists(transaction))SafeFiles.DeleteOwnedTree(staging,transaction);}
+        }
+        internal void Commit(Installation installation,CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if(!String.Equals(installation.Root,Root,StringComparison.OrdinalIgnoreCase))throw new IOException("Installation root changed before activation.");
+            var current=Installed();
+            if(current!=null&&current.Release.Spec.sequence>installation.Release.Spec.sequence)throw new IOException("A newer client version is already active.");
+            if(current!=null&&current.Release.Spec.archiveSha256==installation.Release.Spec.archiveSha256)return;
+            VerifyFolder(Path.GetDirectoryName(installation.Executable),installation.Release.Spec,token,false);Activate(installation.Release,token);
         }
         private void Activate(TrustedRelease release,CancellationToken token)
         {
