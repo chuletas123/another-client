@@ -17,10 +17,14 @@ $runtime=Get-ChildItem -LiteralPath (Join-Path $env:WINDIR 'Microsoft.NET/assemb
 $refs+='/r:'+$runtime.FullName
 $refs+=@('Windows.Foundation.winmd','Windows.UI.winmd','Windows.System.winmd','Windows.Graphics.winmd') | ForEach-Object {'/r:'+(Join-Path $env:WINDIR ('System32/WinMetadata/'+$_))}
 $ui=Join-Path $PSScriptRoot 'ui'
-$sources=@($core)+( @('Installer.Shell.cs','Installer.Components.cs','Installer.Program.cs','AssemblyInfo.cs') | ForEach-Object {Join-Path $PSScriptRoot $_})
+$sources=@($core)+( @('Installer.Shell.cs','Installer.Components.cs','Installer.ClientCheck.cs','ClientUpdateHook.cs','Installer.Program.cs','AssemblyInfo.cs') | ForEach-Object {Join-Path $PSScriptRoot $_})
 $sources+=@('AcPlayer.StartupView.cs','AcPlayer.StartupBackdrop.cs','AcPlayer.StartupMaterialPolicy.cs','AcPlayer.StartupWindowPolicy.cs','AcPlayer.StartupWindowBehavior.cs','AcPlayer.StartupProgress.cs') | ForEach-Object {Join-Path $ui $_}
 $options=@('/nologo','/target:winexe','/platform:x64','/optimize+','/debug-',('/out:'+(Join-Path $output 'AnotherClientSetup.exe')),('/win32manifest:'+(Join-Path $PSScriptRoot 'Installer.manifest')),('/win32icon:'+(Join-Path $assets 'ac.ico')))
 $options+=('/resource:'+(Join-Path $assets 'ac.ico')+',AnotherClient.Icon'),('/resource:'+(Join-Path $assets 'branding.png')+',AnotherClient.Branding'),('/resource:'+(Join-Path $assets 'update-public.xml')+',AnotherClient.UpdatePublicKey')
 & $compiler @options @refs @sources
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed.'}
+$updateSources=@('Installer.Core.cs','Installer.ClientCheck.cs','ClientStartupUpdates.cs') | ForEach-Object {Join-Path $PSScriptRoot $_}
+$updateOptions=@('/nologo','/target:library','/platform:x64','/optimize+','/debug-',('/out:'+(Join-Path $output 'AnotherClient.Updates.dll')),('/resource:'+(Join-Path $output 'AnotherClientSetup.exe')+',AnotherClient.UpdateBootstrapper'),('/resource:'+(Join-Path $assets 'update-public.xml')+',AnotherClient.UpdatePublicKey'))
+& $compiler @updateOptions @baseRefs @updateSources
+if($LASTEXITCODE -ne 0){throw 'Client update bridge compilation failed.'}
 Get-FileHash -LiteralPath (Join-Path $output 'AnotherClientSetup.exe') -Algorithm SHA256

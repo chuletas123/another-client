@@ -6,9 +6,9 @@ Los paquetes completos y el instalador se distribuyen mediante **GitHub Releases
 
 ## Versión preparada
 
-El paquete actual es **alpha 1.5.1**, sin cuentas ni sesiones incluidas. Descarga [AnotherClientSetup.exe](https://github.com/chuletas123/another-client/releases/download/alpha-1.5.1/AnotherClientSetup.exe) y ejecútalo con tu usuario habitual de Windows.
+El paquete actual es **alpha 1.5.2**, sin cuentas ni sesiones incluidas. Descarga [AnotherClientSetup.exe](https://github.com/chuletas123/another-client/releases/download/alpha-1.5.2/AnotherClientSetup.exe) y ejecútalo con tu usuario habitual de Windows.
 
-El instalador descarga el cliente completo, lo verifica y crea **Ac player** en el escritorio. Las siguientes aperturas desde ese acceso directo comprueban las actualizaciones antes de abrir el cliente.
+El instalador descarga el cliente completo, lo verifica y crea **Ac player** en el escritorio. Tanto ese acceso directo como el propio **Another Client.exe** comprueban las actualizaciones antes de cargar el cliente. Si hay una nueva versión, muestran **Updating Another Client...** durante la descarga, verificación e instalación y después abren la versión nueva.
 
 ## Instalador y actualizaciones
 

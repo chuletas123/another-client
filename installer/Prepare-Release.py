@@ -27,6 +27,7 @@ def main():
         files={item.filename[len(prefix):]:item for item in items}
         if len(files)!=len(items):raise ValueError('Duplicate archive entries.')
         raw=archive.read(prefix+'client-manifest.json');manifest=json.loads(raw)
+        if args.sequence>=3 and manifest.get('updateChannelSequence')!=args.sequence:raise ValueError('Client embedded update identity must match the channel sequence.')
         if manifest.get('accountsCopied') is not False or manifest.get('privateKeysCopied') is not False:raise ValueError('Privacy flags must explicitly exclude accounts and private keys.')
         expected=dict(manifest['files']);expected['client-manifest.json']=hashlib.sha256(raw).hexdigest()
         if set(expected)!=set(files):raise ValueError('Archive inventory differs from the manifest.')

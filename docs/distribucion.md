@@ -19,7 +19,9 @@ El contenido firmado identifica una versión completa: secuencia, URL del asset 
   Ac Player\                     perfiles, cachés y política de registro existentes
 ```
 
-El cliente se instala por usuario. Crea `Ac player` en el escritorio y en el menú Inicio. Esos accesos directos consultan el canal antes de abrir la versión seleccionada. Abrir directamente un EXE dentro de `Versions` omite esa comprobación.
+El cliente se instala por usuario. Crea `Ac player` en el escritorio y en el menú Inicio. Desde alpha 1.5.2, tanto esos accesos directos como el propio `Another Client.exe` consultan el canal antes de cargar el motor. La comprobación directa del EXE tiene un plazo de cuatro segundos: un canal inaccesible o inválido permite continuar con el cliente existente. Los modos explícitos de verificación, desarrollo y funcionamiento sin conexión conservan su comportamiento.
+
+El EXE incorpora el puente de actualización y una copia del bootstrapper con la misma clave pública. El bootstrapper se extrae y verifica en `Installer/Bootstrapper/<hash>/`, consulta una sola vez el canal firmado y muestra **Updating Another Client...** únicamente cuando hay una versión superior. Usa la misma descarga, comprobación y extracción segura que el instalador. No modifica un EXE en uso: activa una versión completa en `Versions` y arranca esa versión. La respuesta temporal contiene únicamente el sobre público firmado, que el cliente vuelve a verificar antes de abrir el EXE nuevo. Un comprobante firmado, validado contra el hash y la ruta del nuevo EXE y eliminado del entorno al leerlo, evita repetir la consulta inmediatamente después de instalar; la siguiente apertura normal vuelve a consultar GitHub.
 
 Se necesitan Windows 10/11 x64 y .NET Framework 4.8 o posterior. El instalador comprueba Visual C++ x64 y WebView2. Si falta Visual C++, descarga el redistribuible oficial y verifica su firma y su identidad antes de ejecutarlo; Windows puede pedir autorización UAC para ese componente compartido. Para WebView2 usa el bootstrapper firmado incluido en el paquete, con instalación por usuario. Los componentes presentes no se reinstalan. No se fuerza ningún reinicio. Un resultado que requiera reiniciar se comunica antes de abrir el cliente.
 
@@ -41,10 +43,10 @@ Los datos personales de `Ac Player`, incluidas las sesiones y la política antia
 4. Desde la cuenta del editor que conserva la clave, ejecutar Python 3.11 o posterior:
 
    ```powershell
-   python installer/Prepare-Release.py "C:\ruta\cliente.zip" --tag alpha-1.6 --version "alpha 1.6" --sequence 2 --asset another.client.alpha.1.6.zip
+   python installer/Prepare-Release.py "C:\ruta\cliente.zip" --tag alpha-1.6 --version "alpha 1.6" --sequence 4 --asset another.client.alpha.1.6.zip
    ```
 
-5. Revisar `release-candidate.json` y `channel-candidate.json`. La secuencia debe aumentar respecto del canal publicado. Comprobar que tamaño y SHA-256 coinciden con el asset ya publicado en GitHub.
+5. Revisar `release-candidate.json` y `channel-candidate.json`. La secuencia debe aumentar respecto del canal publicado y coincidir con `updateChannelSequence` del manifiesto incorporado al cliente. El compilador de preparación rechaza discrepancias desde la secuencia 3. Comprobar que tamaño y SHA-256 coinciden con el asset ya publicado en GitHub.
 6. Ejecutar `installer/Test.ps1` con el ZIP y el canal. Probar manualmente el recorrido visual en Windows cuando cambie el descargador.
 7. Publicar solo el sobre firmado como `channels/alpha.json`. No publicar la clave DPAPI, sesiones, tokens ni el directorio `build`.
 

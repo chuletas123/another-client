@@ -27,3 +27,9 @@ $materialSources=@('ui/AcPlayer.StartupMaterialPolicy.cs','ui/AcPlayer.StartupMa
 if($LASTEXITCODE -ne 0){throw 'Material fallback tests did not compile.'}
 & $materialOutput
 if($LASTEXITCODE -ne 0){throw 'Material fallback tests failed.'}
+$clientCheckOutput=Join-Path $PSScriptRoot 'build/ClientCheck.Tests.exe'
+$clientCheckSources=@('Installer.Core.cs','Installer.ClientCheck.cs','ClientStartupUpdates.cs','ClientCheck.Tests.cs') | ForEach-Object {Join-Path $PSScriptRoot $_}
+& $compiler /nologo /target:exe /platform:x64 /optimize+ /debug- ('/out:'+$clientCheckOutput) /r:System.dll /r:System.Core.dll /r:System.Security.dll /r:System.Net.Http.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll @clientCheckSources
+if($LASTEXITCODE -ne 0){throw 'Direct-client update tests did not compile.'}
+& $clientCheckOutput (Join-Path $fixture 'client-check')
+if($LASTEXITCODE -ne 0){throw 'Direct-client update tests failed.'}

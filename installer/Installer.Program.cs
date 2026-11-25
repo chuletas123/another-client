@@ -21,19 +21,19 @@ namespace AnotherClient.Installer
 {
     internal static class Program
     {
-        [STAThread]private static int Main()
+        [STAThread]private static int Main(string[] args)
         {
             AppContext.SetSwitch("Switch.System.IO.UseLegacyPathHandling",false);
             AppContext.SetSwitch("Switch.System.IO.BlockLongPaths",false);
             bool created;
             using(var single=new Mutex(true,"Local\\AnotherClient.Installer."+WindowsIdentity.GetCurrent().User.Value,out created)){
                 if(!created)return 0;
-                try{return Run();}
+                try{return Run(args);}
                 catch(Exception e){MessageBox.Show("Another Client could not be installed.\n\n"+e.Message,"Another Client",MessageBoxButton.OK,MessageBoxImage.Error);return 1;}
                 finally{single.ReleaseMutex();}
             }
         }
-        private static int Run()
+        private static int Run(string[] args)
         {
             if(Environment.OSVersion.Version.Major<10)throw new IOException("Another Client requires 64-bit Windows 10 or Windows 11.");
             string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Another Client");
@@ -46,18 +46,22 @@ namespace AnotherClient.Installer
                 string key;
                 using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("AnotherClient.UpdatePublicKey"))
                 using(var reader=new StreamReader(stream)){key=reader.ReadToEnd();}
+                var check=ClientCheck.Read(args,root,key,source);
+                if(check!=null&&!check.Needed(root,key,source))return ClientCheck.ContinueCurrent;
+                IReleaseTransport transport=check==null?(IReleaseTransport)source:new PreparedFeedTransport(source,check.Feed);
                 var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
                 var card=new StartupCard(false);int exit=0;
                 using(var relay=new StartupProgressRelay(p=>{if(!cancellation.IsCancellationRequested)card.SetProgress(p.Message,p.Percent,p.Indeterminate);})){
-                    var engine=new InstallerEngine(root,key,source,p=>relay.Report(new StartupProgress(p.Message,p.Percent*90/100,p.Indeterminate)),true);
+                    var engine=new InstallerEngine(root,key,transport,p=>relay.Report(new StartupProgress(check==null?p.Message:"Updating Another Client...",p.Percent*90/100,p.Indeterminate)),true);
                     card.CancelRequested+=delegate{cancellation.Cancel();card.SetCancelling();};
-                    card.SetProgress("Preparing Another Client...",0,true);card.ShowStartup();
+                    card.SetProgress(check==null?"Preparing Another Client...":"Updating Another Client...",0,true);card.ShowStartup();
                     app.Dispatcher.BeginInvoke(new Action(async delegate{
                         try{
                             var components=new WindowsComponents();
                             if(!components.FrameworkReady)throw new IOException("Another Client requires .NET Framework 4.8 or later. Install it from https://dotnet.microsoft.com/download/dotnet-framework/net48 and try again.");
                             var installed=await Task.Run(()=>engine.Prepare(cancellation.Token));
-                            await Task.Run(()=>ComponentInstallation.Ensure(installed,components,p=>relay.Report(new StartupProgress(p.Message,p.Percent,p.Indeterminate)),busy=>app.Dispatcher.Invoke(()=>card.CancelControl.IsEnabled=!busy),cancellation.Token));
+                            if(check!=null&&installed.Release.Spec.sequence<=check.Sequence){exit=ClientCheck.ContinueCurrent;card.CompleteAndClose();return;}
+                            await Task.Run(()=>ComponentInstallation.Ensure(installed,components,p=>relay.Report(new StartupProgress(check==null?p.Message:"Updating Another Client...",p.Percent,p.Indeterminate)),busy=>app.Dispatcher.Invoke(()=>card.CancelControl.IsEnabled=!busy),cancellation.Token));
                             await Task.Run(()=>engine.Commit(installed,cancellation.Token));
                             cancellation.Token.ThrowIfCancellationRequested();
                             // Shell links are created on the STA UI thread. No shell script is launched.
@@ -66,7 +70,13 @@ namespace AnotherClient.Installer
                             ShellInstallation.InstallShortcuts(root,launcher);
                             relay.Report(new StartupProgress("Starting Another Client...",100,false));relay.Flush();
                             card.CompleteAndClose();
-                            Process.Start(new ProcessStartInfo(installed.Executable){WorkingDirectory=Path.GetDirectoryName(installed.Executable),UseShellExecute=false});
+                            if(check!=null){exit=check.Complete(installed,key)?ClientCheck.Updated:ClientCheck.ContinueCurrent;}
+                            else {
+                                var launch=new ProcessStartInfo(installed.Executable){WorkingDirectory=Path.GetDirectoryName(installed.Executable),UseShellExecute=false};
+                                string passport=Convert.ToBase64String(installed.Release.Envelope);
+                                if(passport.Length<=8192)launch.EnvironmentVariables["ANOTHER_CLIENT_VERIFIED_UPDATE"]=passport;
+                                Process.Start(launch);
+                            }
                         }catch(OperationCanceledException){
                             exit=cancellation.IsCancellationRequested?0:1;card.CompleteAndClose();
                             if(exit!=0)MessageBox.Show("The download service did not respond in time. Please open Ac player to retry.","Another Client",MessageBoxButton.OK,MessageBoxImage.Error);
