@@ -63,6 +63,11 @@ namespace AnotherClient.Installer
                     var package=client.GetType("AnotherClient.Player.PackageManifest",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{configuration});
                     // Constructor verifies the actual engine hashes; StartAsync is never called.
                     Activator.CreateInstance(client.GetType("AnotherClient.Player.NativeLaunch",true),new object[]{configuration,package,null});
+                    byte[] recoveryCatalog;
+                    using(var input=client.GetManifestResourceStream("AnotherClient.ReleaseCatalog"))using(var memory=new MemoryStream()){input.CopyTo(memory);recoveryCatalog=memory.ToArray();}
+                    var integrityType=client.GetType("AnotherClient.Player.ReleaseIntegrity",true);
+                    var integrityConstructor=integrityType.GetConstructor(BindingFlags.Instance|BindingFlags.NonPublic,null,new[]{typeof(string),typeof(byte[]),typeof(Func<Stream>),typeof(string)},null);
+                    using((IDisposable)integrityConstructor.Invoke(new object[]{Path.GetDirectoryName(Path.GetFullPath(args[2])),recoveryCatalog,new Func<Stream>(()=>client.GetManifestResourceStream("AnotherClient.PlayerOriginals")),ReleaseTrust.HashFile(executable,System.Threading.CancellationToken.None)})){}
                     Console.WriteLine("Verified embedded client sequence "+Convert.ToString(embedded["updateChannelSequence"])+" and "+a.Count+" file digests. No client started.");
                 }else if(args.Length==2&&args[0]=="public-key"){
                     using(var rsa=Key(true))SafeFiles.WriteAtomic(Path.GetFullPath(args[1]),Encoding.UTF8.GetBytes(rsa.ToXmlString(false)));
