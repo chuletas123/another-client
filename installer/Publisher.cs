@@ -43,7 +43,7 @@ namespace AnotherClient.Installer
                     var trusted=ReleaseTrust.Verify(File.ReadAllBytes(args[1]),File.ReadAllText(args[2]));
                     Console.WriteLine(ReleaseTrust.Json.Serialize(trusted.Spec));return 0;
                 }else if(args.Length==3&&args[0]=="verify-client"){
-                    // Read resources only: never invoke the client's entry point or methods.
+                    // Read resources and run offline configuration/manifest validation; never invoke Main.
                     string executable=Path.GetFullPath(args[1]);var client=Assembly.Load(File.ReadAllBytes(executable));
                     string catalogText;
                     using(var input=client.GetManifestResourceStream("AnotherClient.ReleaseCatalog")){
