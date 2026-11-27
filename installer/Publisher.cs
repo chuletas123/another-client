@@ -58,6 +58,9 @@ namespace AnotherClient.Installer
                     var b=ReleaseTrust.Json.ConvertToType<Dictionary<string,string>>(external["files"]);
                     if(a.Count!=b.Count)throw new IOException("Embedded and external client inventories differ.");
                     foreach(var entry in a){string value;if(!b.TryGetValue(entry.Key,out value)||value!=entry.Value)throw new IOException("Embedded client file digest differs: "+entry.Key);}
+                    // Exercise the shipped client's offline manifest policy, including pinned engine hashes.
+                    var configuration=client.GetType("AnotherClient.Player.PlayerConfiguration",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{Path.GetDirectoryName(Path.GetFullPath(args[2]))});
+                    client.GetType("AnotherClient.Player.PackageManifest",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{configuration});
                     Console.WriteLine("Verified embedded client sequence "+Convert.ToString(embedded["updateChannelSequence"])+" and "+a.Count+" file digests. No client started.");
                 }else if(args.Length==2&&args[0]=="public-key"){
                     using(var rsa=Key(true))SafeFiles.WriteAtomic(Path.GetFullPath(args[1]),Encoding.UTF8.GetBytes(rsa.ToXmlString(false)));
@@ -70,7 +73,7 @@ namespace AnotherClient.Installer
                     }
                 }else throw new ArgumentException("Usage: Publisher public-key <public.xml> | sign <release.json> <channel.json> | verify-client <client.exe> <manifest.json> | read-channel <channel.json> <public.xml>");
                 Console.WriteLine("Publisher operation completed.");return 0;
-            }catch(Exception e){Console.Error.WriteLine(e.Message);return 1;}
+            }catch(Exception e){while(e is TargetInvocationException&&e.InnerException!=null)e=e.InnerException;var code=e.GetType().GetField("Code");Console.Error.WriteLine(code==null?e.Message:Convert.ToString(code.GetValue(e)));return 1;}
         }
     }
 }

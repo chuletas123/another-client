@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using AnotherClient.Installer;
 
 namespace AnotherClient.Updates
@@ -11,6 +12,24 @@ namespace AnotherClient.Updates
     public static class ClientStartupUpdates
     {
         private const string Passport="ANOTHER_CLIENT_VERIFIED_UPDATE";
+        internal static Task RefreshInstalledLauncher(string root,byte[] bootstrapper,string previousHash)
+        {
+            // Upgrade only the known installer-owned launcher, after a verified handoff.
+            // The old setup may still be exiting: bounded retries never delay the client UI.
+            return Task.Run(async delegate{
+                string target=SafeFiles.Child(root,"AnotherClientLauncher.exe"),next=ReleaseTrust.Hash(bootstrapper);
+                for(int attempt=0;attempt<8;attempt++){
+                    try{
+                        SafeFiles.NoReparse(target);if(!File.Exists(target))return;
+                        string current=ReleaseTrust.HashFile(target,CancellationToken.None);
+                        if(current==next||current!=previousHash)return;
+                        SafeFiles.WriteAtomic(target,bootstrapper);return;
+                    }catch(UnauthorizedAccessException){return;}
+                    catch(IOException){}
+                    await Task.Delay(250).ConfigureAwait(false);
+                }
+            });
+        }
         internal static long CurrentSequence(Assembly client)
         {
             using(var input=client.GetManifestResourceStream("AnotherClient.ReleaseCatalog"))using(var reader=new StreamReader(input)){
@@ -52,7 +71,10 @@ namespace AnotherClient.Updates
             try{
                 string key=System.Text.Encoding.UTF8.GetString(Resource("AnotherClient.UpdatePublicKey"));
                 var client=Assembly.GetEntryAssembly();string executable=client.Location;long sequence=CurrentSequence(client);
-                try{if(AcceptHandoff(passport,root,executable,key,sequence))return false;}catch(Exception e){if(e is OutOfMemoryException)throw;}
+                try{if(AcceptHandoff(passport,root,executable,key,sequence)){
+                    RefreshInstalledLauncher(root,Resource("AnotherClient.UpdateBootstrapper"),"017d622ac5fb5465585e6ffc234f32c7820085c46e57a7f8c6e2a76f125934e9");
+                    return false;
+                }}catch(Exception e){if(e is OutOfMemoryException)throw;}
                 byte[] bootstrapper=Resource("AnotherClient.UpdateBootstrapper");string hash=ReleaseTrust.Hash(bootstrapper);
                 string folder=SafeFiles.Child(root,"Installer/Bootstrapper/"+hash.Substring(0,16));SafeFiles.EnsureDirectory(folder);
                 string updater=SafeFiles.Child(folder,"AnotherClientUpdater.exe");SafeFiles.NoReparse(updater);

@@ -115,7 +115,12 @@ namespace AnotherClient.Installer
                     Check(progress.All(p=>p.Percent>=0&&p.Percent<=100),"progress bounded");Check(progress.Zip(progress.Skip(1),(a,b)=>b.Percent>=a.Percent).All(x=>x),"progress monotonic");
                     Prepare(engine);Check(source.Downloads==1,"up-to-date skips download");Check(source.Feeds==2,"launch checks feed");
                     source.Offline=true;Check(Prepare(engine).Release.Spec.sequence==1,"offline starts installed");source.Offline=false;
-                    var second=Make(2);source.Package=second;Prepare(engine);
+                    progress.Clear();var second=Make(2);source.Package=second;Prepare(engine);
+                    Check(engine.IsUpdating&&progress.Any(p=>p.Message=="Updating Another Client..."),"existing installation uses update text");
+                    Check(!progress.Any(p=>p.Message=="Downloading Another Client..."||p.Message=="Installing Another Client..."||p.Message=="Verifying Another Client..."),"update phases never use first-install wording");
+                    Check(progress.All(p=>p.Percent>=0&&p.Percent<=100)&&progress.Zip(progress.Skip(1),(a,b)=>b.Percent>=a.Percent).All(v=>v),"update wording preserves bounded monotonic byte progress");
+                    var portableProgress=new List<InstallProgress>();var portable=new InstallerEngine(Fresh(),key,new Transport{Package=first},portableProgress.Add,true,true);Prepare(portable);
+                    Check(portable.IsUpdating&&portableProgress.Any(p=>p.Message=="Updating Another Client...")&&!portableProgress.Any(p=>p.Message=="Downloading Another Client..."),"portable direct-client update also uses update wording");
                     Check(engine.Installed().Release.Spec.sequence==2,"new version active");Check(engine.Installed("previous.json").Release.Spec.sequence==1,"previous version retained");Check(File.Exists(installed.Executable),"old version untouched");
                     source.Package=first;Check(Prepare(engine).Release.Spec.sequence==2,"signed older feed cannot downgrade");
                     var third=Make(3);source.Package=third;source.Corrupt=true;Check(Prepare(engine).Release.Spec.sequence==2,"bad update starts previous valid");Check(engine.Installed().Release.Spec.sequence==2,"bad update not activated");source.Corrupt=false;
@@ -134,7 +139,7 @@ namespace AnotherClient.Installer
                     Check(File.ReadAllText(privateState)=="preserved","private state survives update and repair");
                     source.Package=third;
                     using(var cancel=new CancellationTokenSource()){
-                        var cancelling=new InstallerEngine(root,key,source,p=>{if(p.Message=="Installing Another Client..."&&p.Percent>=79)cancel.Cancel();});
+                        var cancelling=new InstallerEngine(root,key,source,p=>{if(p.Percent>=79&&p.Percent<98)cancel.Cancel();});
                         bool cancelled=false;try{Prepare(cancelling,cancel.Token);}catch(OperationCanceledException){cancelled=true;}
                         Check(cancelled,"cancel during extraction");Check(engine.Installed().Release.Spec.sequence==2,"extraction cancellation preserves current");
                         Check(Directory.GetDirectories(Path.Combine(root,"Installer","Staging")).Length==0,"cancelled extraction removes only its staging");

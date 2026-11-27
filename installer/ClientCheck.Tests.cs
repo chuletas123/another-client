@@ -37,6 +37,18 @@ namespace AnotherClient.Installer
         {
             try{
                 root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);
+                string launcherRoot=Path.Combine(root,"refresh-launcher");Directory.CreateDirectory(launcherRoot);
+                string launcher=Path.Combine(launcherRoot,"AnotherClientLauncher.exe");byte[] oldLauncher=Encoding.UTF8.GetBytes("known prior installer"),newLauncher=Encoding.UTF8.GetBytes("new verified installer");
+                File.WriteAllBytes(launcher,oldLauncher);
+                Task refresh;
+                using(var held=new FileStream(launcher,FileMode.Open,FileAccess.Read,FileShare.Read)){
+                    refresh=ClientStartupUpdates.RefreshInstalledLauncher(launcherRoot,newLauncher,ReleaseTrust.Hash(oldLauncher));
+                    Thread.Sleep(300);Check(File.ReadAllBytes(launcher).SequenceEqual(oldLauncher),"busy prior launcher is not overwritten in place");
+                }
+                refresh.GetAwaiter().GetResult();Check(File.ReadAllBytes(launcher).SequenceEqual(newLauncher),"known prior launcher upgraded after lock release");
+                File.WriteAllBytes(launcher,Encoding.UTF8.GetBytes("unknown user file"));ClientStartupUpdates.RefreshInstalledLauncher(launcherRoot,newLauncher,ReleaseTrust.Hash(oldLauncher)).GetAwaiter().GetResult();
+                Check(Encoding.UTF8.GetString(File.ReadAllBytes(launcher))=="unknown user file","unknown launcher bytes preserved");
+                string absent=Path.Combine(root,"portable-no-launcher");ClientStartupUpdates.RefreshInstalledLauncher(absent,newLauncher,ReleaseTrust.Hash(oldLauncher)).GetAwaiter().GetResult();Check(!Directory.Exists(absent),"portable update does not create installation launcher");
                 using(rsa=new RSACryptoServiceProvider(3072)){
                     rsa.PersistKeyInCsp=false;key=rsa.ToXmlString(false);string install=Path.Combine(root,"installed");var source=Package(4);
                     Check(ClientCheck.Read(new string[0],install,key,source)==null,"normal setup mode unaffected");

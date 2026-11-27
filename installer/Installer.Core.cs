@@ -199,10 +199,11 @@ namespace AnotherClient.Installer
     }
     internal sealed class InstallerEngine
     {
-        internal readonly string Root;private readonly string publicKey;private readonly IReleaseTransport transport;private readonly Action<InstallProgress> progress;private readonly bool deferred;
-        internal InstallerEngine(string root,string key,IReleaseTransport source,Action<InstallProgress> onProgress,bool deferActivation=false){Root=Path.GetFullPath(root);publicKey=key;transport=source;progress=onProgress??(p=>{});deferred=deferActivation;}
+        internal readonly string Root;private readonly string publicKey;private readonly IReleaseTransport transport;private readonly Action<InstallProgress> progress;private readonly bool deferred,requestedUpdate;
+        internal bool IsUpdating {get;private set;}
+        internal InstallerEngine(string root,string key,IReleaseTransport source,Action<InstallProgress> onProgress,bool deferActivation=false,bool updateRequested=false){Root=Path.GetFullPath(root);publicKey=key;transport=source;progress=onProgress??(p=>{});deferred=deferActivation;requestedUpdate=updateRequested;}
         private string Installer {get{return SafeFiles.Child(Root,"Installer");}}
-        private void Report(string text,int percent,bool pending=false){progress(new InstallProgress(text,percent,pending));}
+        private void Report(string text,int percent,bool pending=false){if(IsUpdating&&(text=="Preparing Another Client..."||text=="Downloading Another Client..."||text=="Verifying Another Client..."||text=="Installing Another Client..."))text="Updating Another Client...";progress(new InstallProgress(text,percent,pending));}
         internal Installation Installed(string pointer="current.json")
         {
             try{
@@ -228,8 +229,8 @@ namespace AnotherClient.Installer
         private async Task<Installation> PrepareCore(CancellationToken token)
         {
             SafeFiles.NoReparse(Root);SafeFiles.EnsureDirectory(Installer);SafeFiles.EnsureDirectory(SafeFiles.Child(Root,"Versions"));
-            Report("Preparing Another Client...",0,true);
-            var installed=Installed()??Installed("previous.json");TrustedRelease latest;
+            var installed=Installed()??Installed("previous.json");IsUpdating=requestedUpdate||installed!=null;
+            Report("Preparing Another Client...",0,true);TrustedRelease latest;
             try{latest=ReleaseTrust.Verify(await transport.Feed(token).ConfigureAwait(false),publicKey);}
             catch(Exception e){if(token.IsCancellationRequested)throw new OperationCanceledException(token);if(e is OutOfMemoryException)throw;if(installed==null)throw;Report("Starting Another Client...",100);return installed;}
             token.ThrowIfCancellationRequested();

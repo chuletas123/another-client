@@ -52,7 +52,7 @@ namespace AnotherClient.Installer
                 var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
                 var card=new StartupCard(false);int exit=0;
                 using(var relay=new StartupProgressRelay(p=>{if(!cancellation.IsCancellationRequested)card.SetProgress(p.Message,p.Percent,p.Indeterminate);})){
-                    var engine=new InstallerEngine(root,key,transport,p=>relay.Report(new StartupProgress(check==null?p.Message:"Updating Another Client...",p.Percent*90/100,p.Indeterminate)),true);
+                    var engine=new InstallerEngine(root,key,transport,p=>relay.Report(new StartupProgress(check==null?p.Message:"Updating Another Client...",p.Percent*90/100,p.Indeterminate)),true,check!=null);
                     card.CancelRequested+=delegate{cancellation.Cancel();card.SetCancelling();};
                     card.SetProgress(check==null?"Preparing Another Client...":"Updating Another Client...",0,true);card.ShowStartup();
                     app.Dispatcher.BeginInvoke(new Action(async delegate{
@@ -61,7 +61,7 @@ namespace AnotherClient.Installer
                             if(!components.FrameworkReady)throw new IOException("Another Client requires .NET Framework 4.8 or later. Install it from https://dotnet.microsoft.com/download/dotnet-framework/net48 and try again.");
                             var installed=await Task.Run(()=>engine.Prepare(cancellation.Token));
                             if(check!=null&&installed.Release.Spec.sequence<=check.Sequence){exit=ClientCheck.ContinueCurrent;card.CompleteAndClose();return;}
-                            await Task.Run(()=>ComponentInstallation.Ensure(installed,components,p=>relay.Report(new StartupProgress(check==null?p.Message:"Updating Another Client...",p.Percent,p.Indeterminate)),busy=>app.Dispatcher.Invoke(()=>card.CancelControl.IsEnabled=!busy),cancellation.Token));
+                            await Task.Run(()=>ComponentInstallation.Ensure(installed,components,p=>relay.Report(new StartupProgress(engine.IsUpdating?"Updating Another Client...":p.Message,p.Percent,p.Indeterminate)),busy=>app.Dispatcher.Invoke(()=>card.CancelControl.IsEnabled=!busy),cancellation.Token));
                             await Task.Run(()=>engine.Commit(installed,cancellation.Token));
                             cancellation.Token.ThrowIfCancellationRequested();
                             // Shell links are created on the STA UI thread. No shell script is launched.
