@@ -37,6 +37,8 @@ Los datos personales de `Ac Player`, incluidas las sesiones y la política antia
 
 ## Publicar otra versión
 
+**Subir un ZIP a una Release no activa una actualización.** Los clientes consultan `channels/alpha.json`, no el nombre del ZIP ni la Release marcada como más reciente. El canal debe firmarse y publicarse después de verificar el paquete. La secuencia tiene que aumentar tanto en el manifiesto externo como en `AnotherClient.ReleaseCatalog` incorporado en el EXE; renombrar el archivo o cambiar solo el manifiesto externo no cambia esa identidad. La herramienta de preparación ahora comprueba ambas copias y rechaza las discrepancias.
+
 1. Preparar un ZIP completo y limpio con `client-manifest.json` y huellas actualizadas, excluyendo cuentas, sesiones y claves privadas.
 2. Subirlo como asset de una Release. Conservar el nombre exacto devuelto por GitHub: puede convertir los espacios en puntos.
 3. Compilar las herramientas con `installer/Build.ps1`. La clave pública está incluida. La clave privada del editor permanece protegida con DPAPI en su cuenta de Windows, fuera del repositorio y los paquetes. No sustituir la clave pública generando otra en una cuenta diferente.
@@ -46,7 +48,7 @@ Los datos personales de `Ac Player`, incluidas las sesiones y la política antia
    python installer/Prepare-Release.py "C:\ruta\cliente.zip" --tag alpha-1.6 --version "alpha 1.6" --sequence 4 --asset another.client.alpha.1.6.zip
    ```
 
-5. Revisar `release-candidate.json` y `channel-candidate.json`. La secuencia debe aumentar respecto del canal publicado y coincidir con `updateChannelSequence` del manifiesto incorporado al cliente. El compilador de preparación rechaza discrepancias desde la secuencia 3. Comprobar que tamaño y SHA-256 coinciden con el asset ya publicado en GitHub.
+5. Revisar `release-candidate.json` y `channel-candidate.json`. La herramienta verifica la firma del canal publicado y exige una secuencia superior. Esta debe coincidir con `updateChannelSequence` del manifiesto incorporado al cliente. `Publisher verify-client` comprueba además que los hashes del inventario incorporado coincidan con el manifiesto externo. Comprobar que tamaño y SHA-256 coinciden con el asset ya publicado en GitHub. Los módulos Avatar, Discord y Registration y su configuración pública están permitidos por el validador; las carpetas de cuentas, sesiones y claves siguen excluidas. Para preparación sin red se puede indicar `--previous-channel ruta/al/canal.json`; ese archivo también debe tener una firma válida y debe representar el último canal conocido.
 6. Ejecutar `installer/Test.ps1` con el ZIP y el canal. Probar manualmente el recorrido visual en Windows cuando cambie el descargador.
 7. Publicar solo el sobre firmado como `channels/alpha.json`. No publicar la clave DPAPI, sesiones, tokens ni el directorio `build`.
 
