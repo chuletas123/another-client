@@ -47,6 +47,8 @@ def main():
             client.write_bytes(archive.read(prefix+'Another Client.exe'));external.write_bytes(raw)
             (folder/'ac-player.json').write_bytes(archive.read(prefix+'ac-player.json'))
             for engine_path in (manifest['playerPath'],manifest['launcherPath']):
+                if not isinstance(engine_path,str) or engine_path not in files or not engine_path.startswith('2026E/') or any(p in ('','..','.') or '\\' in p or ':' in p for p in engine_path.split('/')):
+                    raise ValueError('Unsafe or missing engine path in manifest.')
                 engine_file=folder/engine_path
                 engine_file.parent.mkdir(parents=True,exist_ok=True)
                 engine_file.write_bytes(archive.read(prefix+engine_path))
