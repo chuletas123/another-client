@@ -46,6 +46,10 @@ def main():
             folder=Path(temporary);client=folder/'Another Client.exe';external=folder/'client-manifest.json'
             client.write_bytes(archive.read(prefix+'Another Client.exe'));external.write_bytes(raw)
             (folder/'ac-player.json').write_bytes(archive.read(prefix+'ac-player.json'))
+            for engine_path in (manifest['playerPath'],manifest['launcherPath']):
+                engine_file=folder/engine_path
+                engine_file.parent.mkdir(parents=True,exist_ok=True)
+                engine_file.write_bytes(archive.read(prefix+engine_path))
             subprocess.run([str(HERE/'build/Publisher.exe'),'verify-client',str(client),str(external)],check=True)
         expected=dict(manifest['files']);expected['client-manifest.json']=hashlib.sha256(raw).hexdigest()
         if set(expected)!=set(files):raise ValueError('Archive inventory differs from the manifest.')

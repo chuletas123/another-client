@@ -60,7 +60,9 @@ namespace AnotherClient.Installer
                     foreach(var entry in a){string value;if(!b.TryGetValue(entry.Key,out value)||value!=entry.Value)throw new IOException("Embedded client file digest differs: "+entry.Key);}
                     // Exercise the shipped client's offline manifest policy, including pinned engine hashes.
                     var configuration=client.GetType("AnotherClient.Player.PlayerConfiguration",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{Path.GetDirectoryName(Path.GetFullPath(args[2]))});
-                    client.GetType("AnotherClient.Player.PackageManifest",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{configuration});
+                    var package=client.GetType("AnotherClient.Player.PackageManifest",true).GetMethod("Load",BindingFlags.Static|BindingFlags.Public).Invoke(null,new object[]{configuration});
+                    // Constructor verifies the actual engine hashes; StartAsync is never called.
+                    Activator.CreateInstance(client.GetType("AnotherClient.Player.NativeLaunch",true),new object[]{configuration,package,null});
                     Console.WriteLine("Verified embedded client sequence "+Convert.ToString(embedded["updateChannelSequence"])+" and "+a.Count+" file digests. No client started.");
                 }else if(args.Length==2&&args[0]=="public-key"){
                     using(var rsa=Key(true))SafeFiles.WriteAtomic(Path.GetFullPath(args[1]),Encoding.UTF8.GetBytes(rsa.ToXmlString(false)));
