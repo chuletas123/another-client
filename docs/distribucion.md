@@ -45,7 +45,7 @@ Los datos personales de `Ac Player`, incluidas las sesiones y la política antia
 4. Desde la cuenta del editor que conserva la clave, ejecutar Python 3.11 o posterior:
 
    ```powershell
-   python installer/Prepare-Release.py "C:\ruta\cliente.zip" --tag alpha-1.6 --version "alpha 1.6" --sequence 7 --asset another.client.alpha.1.6.zip
+   python installer/Prepare-Release.py "C:\ruta\cliente.zip" --tag alpha-1.6 --version "alpha 1.6" --sequence 8 --asset another.client.alpha.1.6.zip
    ```
 
 5. Revisar `release-candidate.json` y `channel-candidate.json`. La herramienta verifica la firma del canal publicado y exige una secuencia superior. Esta debe coincidir con `updateChannelSequence` del manifiesto incorporado al cliente. `Publisher verify-client` comprueba además que los hashes del inventario incorporado coincidan con el manifiesto externo. Comprobar que tamaño y SHA-256 coinciden con el asset ya publicado en GitHub. Los módulos Avatar, Discord y Registration y su configuración pública están permitidos por el validador; las carpetas de cuentas, sesiones y claves siguen excluidas. Para preparación sin red se puede indicar `--previous-channel ruta/al/canal.json`; ese archivo también debe tener una firma válida y debe representar el último canal conocido.
@@ -69,3 +69,7 @@ El setup 1.0.4 muestra Updating Another Client... al actualizar una instalación
 ## Comprobación del arranque nativo en alpha 1.5.7
 
 La 1.5.6 aún conservaba una segunda copia de la constante de integridad en NativeLaunch. La 1.5.7 actualiza esa referencia exacta sin desactivar el control. El publicador extrae también los dos ejecutables del motor e invoca exclusivamente el constructor de NativeLaunch con runtime nulo para comprobar sus hashes; nunca llama StartAsync ni arranca procesos. La regresión comprueba que la 1.5.6 falla, que la nueva versión supera ambas capas y que alterar el lanzador sigue causando rechazo.
+
+## Recursos de avatar en alpha 1.5.8
+
+El cliente adapta GET/HEAD de /services/assetdelivery/v1/asset a una respuesta 302 con la ruta de contenido del mismo servicio. El motor espera una ubicación en esta fase; algunas instalaciones del host entregan directamente el cuerpo binario, provocando Empty Url. El adaptador conserva la consulta y sus versiones/representaciones, no descarga el cuerpo dos veces y no cambia cuentas, permisos ni el endpoint binario. La biblioteca de avatar y su copia protegida de recuperación se publican juntas. La vista del perfil conserva sus dependencias de userId y de la revisión de userThumbnail, y consulta la apariencia guardada con un nonce.
