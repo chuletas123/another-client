@@ -73,3 +73,11 @@ La 1.5.6 aÃºn conservaba una segunda copia de la constante de integridad en Nati
 ## Recursos de avatar en alpha 1.5.8
 
 El cliente adapta GET/HEAD de /services/assetdelivery/v1/asset a una respuesta 302 con la ruta de contenido del mismo servicio. El motor espera una ubicaciÃ³n en esta fase; algunas instalaciones del host entregan directamente el cuerpo binario, provocando Empty Url. El adaptador conserva la consulta y sus versiones/representaciones, no descarga el cuerpo dos veces y no cambia cuentas, permisos ni el endpoint binario. La biblioteca de avatar y su copia protegida de recuperaciÃ³n se publican juntas. La vista del perfil conserva sus dependencias de userId y de la revisiÃ³n de userThumbnail, y consulta la apariencia guardada con un nonce.
+
+## Perfiles y amistades en alpha 1.5.9
+
+La secuencia 8 incorpora las listas de amistades, seguidores, seguidos y solicitudes dentro del cliente. El servidor conserva follows y nombres personalizados privados; las solicitudes exigen la sesión propietaria. La paginación usa cursores, deshabilita flechas sin destino y conserva la página visible si falla la consulta. La cabecera y la primera página se piden en paralelo, y las respuestas tardías no cambian una vista cerrada. Las tarjetas obtienen las fotos actuales por la ruta pública de imágenes permitida, sin usar una revisión inventada como hash de apariencia del servidor.
+
+Requiere el parche profile-social del VPS y su regla exacta en public-ingress para las rutas APIS de lectura y mutación; se mantienen autenticación, CSRF y límites existentes. El menú utiliza Follow en lugar de transferencia de moneda y conserva el chat entre amigos. Los reportes se guardan pendientes en el VPS, sin sanciones automáticas. Los contadores del perfil se refrescan después de una acción y cada 15 segundos mientras está visible; se cancela el temporizador al salir.
+
+La vista 3D del perfil deja de esperar al preparado global de recursos para obtener el snapshot y elimina dos esperas fijas de composición tras crear el modelo. El motor conserva su descarga normal, y siguen las dependencias de usuario/revisión, rig y reparaciones de apariencia. Las pruebas locales verifican lógica, firmas, recuperación y actualización; no equivalen a una medición visual del tiempo de carga en cada equipo.
